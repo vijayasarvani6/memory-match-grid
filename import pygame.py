@@ -16,13 +16,7 @@ CARD_BACK = (100, 100, 180)
 TEXT_COLOR = (30, 30, 60)
 MATCH_COLOR = (100, 255, 100)
 
-# Initialize pygame and mixer for sound
 pygame.init()
-pygame.mixer.init()  # Initialize the mixer for sound
-
-# Use pygame's built-in sound (a simple beep sound) when a card is flipped
-flip_sound = pygame.mixer.Sound(pygame.mixer.Sound("beep-07.wav"))
-
 screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
 pygame.display.set_caption("Memory Match Game")
 font = pygame.font.SysFont(None, 48)
@@ -40,36 +34,22 @@ def generate_board(size):
         board.append(row)
     return board
 
-def draw_card(x, y, value, revealed, matched, flip_t):
+def draw_card(x, y, value, revealed, matched):
     rect = pygame.Rect(
         GAP + x * (CARD_SIZE + GAP),
         GAP + y * (CARD_SIZE + GAP),
         CARD_SIZE, CARD_SIZE
     )
-    
-    # Bomb blast animation effect (expand then shrink)
-    if flip_t > 0:
-        scale_factor = 1 + 0.2 * (flip_t // 10)
-        new_size = int(CARD_SIZE * scale_factor)
-        new_rect = pygame.Rect(
-            GAP + x * (CARD_SIZE + GAP) - (new_size - CARD_SIZE) // 2,
-            GAP + y * (CARD_SIZE + GAP) - (new_size - CARD_SIZE) // 2,
-            new_size, new_size
-        )
-    else:
-        new_rect = rect
-
     if matched:
-        pygame.draw.rect(screen, MATCH_COLOR, new_rect)
+        pygame.draw.rect(screen, MATCH_COLOR, rect)
     elif revealed:
-        pygame.draw.rect(screen, CARD_COLOR, new_rect)
+        pygame.draw.rect(screen, CARD_COLOR, rect)
         text = font.render(str(value), True, TEXT_COLOR)
-        text_rect = text.get_rect(center=new_rect.center)
+        text_rect = text.get_rect(center=rect.center)
         screen.blit(text, text_rect)
     else:
-        pygame.draw.rect(screen, CARD_BACK, new_rect)
-
-    pygame.draw.rect(screen, BG_COLOR, new_rect, 4)
+        pygame.draw.rect(screen, CARD_BACK, rect)
+    pygame.draw.rect(screen, BG_COLOR, rect, 4)
 
 def main():
     board = generate_board(GRID_SIZE)
@@ -80,7 +60,6 @@ def main():
     waiting = False
     wait_start = 0
     moves = 0
-    flip_timer = [[0]*GRID_SIZE for _ in range(GRID_SIZE)]  # Timer for bomb effect
 
     running = True
     while running:
@@ -88,7 +67,7 @@ def main():
 
         for y in range(GRID_SIZE):
             for x in range(GRID_SIZE):
-                draw_card(x, y, board[y][x], revealed[y][x], matched[y][x], flip_timer[y][x])
+                draw_card(x, y, board[y][x], revealed[y][x], matched[y][x])
 
         # Draw moves
         moves_text = font.render(f"Moves: {moves}", True, (255, 255, 255))
@@ -114,13 +93,9 @@ def main():
                             if not first:
                                 first = (x, y)
                                 revealed[y][x] = True
-                                flip_sound.play()  # Play flip sound
-                                flip_timer[first[1]][first[0]] = 30  # Trigger bomb effect
                             elif not second and (x, y) != first:
                                 second = (x, y)
                                 revealed[y][x] = True
-                                flip_sound.play()  # Play flip sound
-                                flip_timer[second[1]][second[0]] = 30  # Trigger bomb effect
                                 moves += 1
                                 # Check for match
                                 if board[y][x] == board[first[1]][first[0]]:
@@ -131,7 +106,7 @@ def main():
                                 else:
                                     waiting = True
                                     wait_start = pygame.time.get_ticks()
-                                    break
+                            break
 
         # Handle delay for mismatched cards
         if waiting and pygame.time.get_ticks() - wait_start > 1000:
@@ -140,12 +115,6 @@ def main():
             first = None
             second = None
             waiting = False
-
-        # Decrease bomb effect timer
-        for y in range(GRID_SIZE):
-            for x in range(GRID_SIZE):
-                if flip_timer[y][x] > 0:
-                    flip_timer[y][x] -= 1
 
         # Check for win
         if all(all(row) for row in matched):
